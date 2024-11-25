@@ -16,6 +16,7 @@ public class Main {
         int port = 6379;
         ServerSocket serverSocket;
         Map<String, String> datastore = new ConcurrentHashMap<>();
+        Map<String, Long> expiryMap = new ConcurrentHashMap<>();
         try {
             serverSocket = new ServerSocket(port);
             // Since the tester restarts your program quite often, setting SO_REUSEADDR
@@ -26,7 +27,7 @@ public class Main {
             while (true) {
                 // Wait for a new client connection.
                 Socket clientSocket = serverSocket.accept();
-                Client client = new Client(clientSocket, datastore);
+                Client client = new Client(clientSocket, datastore, expiryMap);
                 executor.submit(client);
             }
         } catch (IOException e) {

@@ -15,11 +15,13 @@ public class Client implements Runnable {
     final BufferedReader reader;
     final BufferedWriter writer;
     final Map<String, String> datastore;
+    final Map<String, Long> expiryMap;
 
-    public Client(final Socket clientSocket, final Map<String, String> datastore)
-            throws IOException {
+    public Client(final Socket clientSocket, final Map<String, String> datastore,
+            final Map<String, Long> expiryMap) throws IOException {
         this.clientSocket = clientSocket;
         this.datastore = datastore;
+        this.expiryMap = expiryMap;
         this.reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
         this.writer = new BufferedWriter(new OutputStreamWriter(clientSocket.getOutputStream()));
     }
@@ -56,11 +58,20 @@ public class Client implements Runnable {
         }
         if (arguments[0].equalsIgnoreCase("set")) {
             datastore.put(arguments[1], arguments[2]);
+            if (arguments.length > 3 && arguments[3].equalsIgnoreCase("px")) {
+                Long timeout = System.currentTimeMillis() + Long.valueOf(arguments[4]);
+                expiryMap.put(arguments[1], timeout);
+            }
             writer.append("+OK\r\n");
             writer.flush();
         }
         if (arguments[0].equalsIgnoreCase("get")) {
-            writer.append("+" + datastore.getOrDefault(arguments[1], "") + "\r\n");
+            Long currentTime = System.currentTimeMillis();
+            if (currentTime <= expiryMap.getOrDefault(arguments[1], currentTime + 1L)) {
+                writer.append("+" + datastore.getOrDefault(arguments[1], "") + "\r\n");
+            } else {
+                writer.append("$-1\r\n");
+            }
             writer.flush();
         }
     }
