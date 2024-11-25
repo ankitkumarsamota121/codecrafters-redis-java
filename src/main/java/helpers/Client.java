@@ -7,6 +7,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
 import java.util.Map;
+import models.ValueAndExpiry;
 import static models.Datatype.ARRAYS;
 
 public class Client implements Runnable {
@@ -14,14 +15,12 @@ public class Client implements Runnable {
     final Socket clientSocket;
     final BufferedReader reader;
     final BufferedWriter writer;
-    final Map<String, String> datastore;
-    final Map<String, Long> expiryMap;
+    final Map<String, ValueAndExpiry> datastore;
 
-    public Client(final Socket clientSocket, final Map<String, String> datastore,
-            final Map<String, Long> expiryMap) throws IOException {
+    public Client(final Socket clientSocket, final Map<String, ValueAndExpiry> datastore)
+            throws IOException {
         this.clientSocket = clientSocket;
         this.datastore = datastore;
-        this.expiryMap = expiryMap;
         this.reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
         this.writer = new BufferedWriter(new OutputStreamWriter(clientSocket.getOutputStream()));
     }
@@ -57,18 +56,20 @@ public class Client implements Runnable {
             writer.flush();
         }
         if (arguments[0].equalsIgnoreCase("set")) {
-            datastore.put(arguments[1], arguments[2]);
+            final ValueAndExpiry toStore = new ValueAndExpiry(arguments[2]);
             if (arguments.length > 3 && arguments[3].equalsIgnoreCase("px")) {
-                Long timeout = System.currentTimeMillis() + Long.valueOf(arguments[4]);
-                expiryMap.put(arguments[1], timeout);
+                Long ttl = System.currentTimeMillis() + Long.valueOf(arguments[4]);
+                toStore.setTtl(ttl);
             }
+            datastore.put(arguments[1], toStore);
             writer.append("+OK\r\n");
             writer.flush();
         }
         if (arguments[0].equalsIgnoreCase("get")) {
             Long currentTime = System.currentTimeMillis();
-            if (currentTime <= expiryMap.getOrDefault(arguments[1], currentTime + 1L)) {
-                writer.append("+" + datastore.getOrDefault(arguments[1], "") + "\r\n");
+            ValueAndExpiry cached = datastore.get(arguments[1]);
+            if (cached != null && currentTime <= cached.getTtl()) {
+                writer.append("+" + cached.getValue() + "\r\n");
             } else {
                 writer.append("$-1\r\n");
             }
