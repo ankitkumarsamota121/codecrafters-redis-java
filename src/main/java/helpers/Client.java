@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
+import java.util.Map;
 import static models.Datatype.ARRAYS;
 
 public class Client implements Runnable {
@@ -13,9 +14,12 @@ public class Client implements Runnable {
     final Socket clientSocket;
     final BufferedReader reader;
     final BufferedWriter writer;
+    final Map<String, String> datastore;
 
-    public Client(final Socket clientSocket) throws IOException {
+    public Client(final Socket clientSocket, final Map<String, String> datastore)
+            throws IOException {
         this.clientSocket = clientSocket;
+        this.datastore = datastore;
         this.reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
         this.writer = new BufferedWriter(new OutputStreamWriter(clientSocket.getOutputStream()));
     }
@@ -32,7 +36,6 @@ public class Client implements Runnable {
                 System.out.println("IOException: " + e.getMessage());
             }
         }
-
     }
 
     private void handleArrays(final String datatype) throws IOException {
@@ -49,6 +52,15 @@ public class Client implements Runnable {
         }
         if (arguments[0].equalsIgnoreCase("ping")) {
             writer.append("+PONG\r\n");
+            writer.flush();
+        }
+        if (arguments[0].equalsIgnoreCase("set")) {
+            datastore.put(arguments[1], arguments[2]);
+            writer.append("+OK\r\n");
+            writer.flush();
+        }
+        if (arguments[0].equalsIgnoreCase("get")) {
+            writer.append("+" + datastore.getOrDefault(arguments[1], "") + "\r\n");
             writer.flush();
         }
     }
