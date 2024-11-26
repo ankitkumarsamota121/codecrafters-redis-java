@@ -1,12 +1,10 @@
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import helpers.Client;
-import models.ValueAndExpiry;
+import helpers.ConfigHelper;
 
 public class Main {
     public static void main(String[] args) {
@@ -14,9 +12,14 @@ public class Main {
         // when running tests.
         System.out.println("Logs from your program will appear here!");
 
+        for (int i = 0; i < args.length; i += 2) {
+            String key = args[i];
+            String value = args[i + 1];
+            ConfigHelper.getInstance().put(key, value);
+        }
+
         int port = 6379;
         ServerSocket serverSocket;
-        Map<String, ValueAndExpiry> datastore = new ConcurrentHashMap<>();
         try {
             serverSocket = new ServerSocket(port);
             // Since the tester restarts your program quite often, setting SO_REUSEADDR
@@ -27,7 +30,7 @@ public class Main {
             while (true) {
                 // Wait for a new client connection.
                 Socket clientSocket = serverSocket.accept();
-                Client client = new Client(clientSocket, datastore);
+                Client client = new Client(clientSocket);
                 executor.submit(client);
             }
         } catch (IOException e) {
